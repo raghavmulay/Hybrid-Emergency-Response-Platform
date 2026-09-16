@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const ThemeToggle: React.FC = () => {
   const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved === 'dark';
+    return localStorage.getItem('theme') === 'dark';
   });
 
   useEffect(() => {
@@ -18,10 +17,11 @@ const ThemeToggle: React.FC = () => {
 
   return (
     <button
-      onClick={() => setIsDark(!isDark)}
-      className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 rounded"
+      onClick={() => setIsDark((d) => !d)}
+      title="Toggle dark mode"
+      className="flex items-center gap-1.5 text-xs font-semibold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
     >
-      {isDark ? 'Light Mode' : 'Dark Mode'}
+      {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
     </button>
   );
 };

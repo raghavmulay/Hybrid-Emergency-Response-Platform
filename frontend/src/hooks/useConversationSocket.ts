@@ -25,20 +25,42 @@ export interface MessageCreate {
   safe_routes?: string[];
 }
 
+const API_BASE = (import.meta.env.VITE_API_URL as string) || "http://127.0.0.1:8000/api/v1";
+
+function buildWsUrl(conversationId: string | number, token: string) {
+  // Strip /api/v1 suffix to get the base host, then build ws:// URL
+  const base = API_BASE.replace(/\/api\/v1\/?$/, '');
+  const wsBase = base.replace(/^http/, 'ws');
+  return `${wsBase}/ws/${conversationId}?token=${token}`;
+}
+
 /**
  * Hook that manages a WebSocket connection for a conversation.
- * It returns the list of received messages and a helper to send a message.
+ * Falls back gracefully if the WebSocket is rejected (e.g. admin-token).
  */
 export function useConversationSocket(conversationId: string | number) {
   const [messages, setMessages] = useState<Message[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token') ?? '';
-    const ws = new WebSocket(`ws://${import.meta.env.VITE_API_URL.replace(/^http/, 'ws')}/ws/${conversationId}?token=${token}`);
+    if (!token) return;
+
+    const url = buildWsUrl(conversationId, token);
+    let ws: WebSocket;
+
+    try {
+      ws = new WebSocket(url);
+    } catch (e) {
+      console.error('Failed to create WebSocket', e);
+      return;
+    }
+
     wsRef.current = ws;
 
     ws.onopen = () => {
+      setConnected(true);
       console.log('WebSocket connected for conversation', conversationId);
     };
 
@@ -46,14 +68,21 @@ export function useConversationSocket(conversationId: string | number) {
       try {
         const msg: Message = JSON.parse(event.data);
         setMessages((prev) => [...prev, msg]);
-        // Show browser notification for emergency messages if permission granted
-        if (msg.is_emergency && 'Notification' in window) {
+
+        // Browser notification for emergency messages
+        const notificationsEnabled = localStorage.getItem('notificationsEnabled') !== 'false';
+        if (msg.is_emergency && 'Notification' in window && notificationsEnabled) {
           if (Notification.permission === 'granted') {
-            new Notification('Emergency Alert', { body: `${msg.priority ?? ''} ${msg.content}` });
+            new Notification('🚨 Emergency Alert', {
+              body: `${msg.priority ?? 'ALERT'}: ${msg.content}`,
+              icon: '/favicon.ico',
+            });
           } else if (Notification.permission !== 'denied') {
             Notification.requestPermission().then((perm) => {
               if (perm === 'granted') {
-                new Notification('Emergency Alert', { body: `${msg.priority ?? ''} ${msg.content}` });
+                new Notification('🚨 Emergency Alert', {
+                  body: `${msg.priority ?? 'ALERT'}: ${msg.content}`,
+                });
               }
             });
           }
@@ -64,11 +93,13 @@ export function useConversationSocket(conversationId: string | number) {
     };
 
     ws.onclose = () => {
+      setConnected(false);
       console.log('WebSocket closed');
     };
 
     ws.onerror = (err) => {
       console.error('WebSocket error', err);
+      setConnected(false);
     };
 
     return () => {
@@ -84,5 +115,5 @@ export function useConversationSocket(conversationId: string | number) {
     }
   };
 
-  return { messages, sendMessage };
+  return { messages, sendMessage, connected };
 }

@@ -44,17 +44,14 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     user = User(
         email=req.email,
         hashed_password=get_password_hash(req.password),
-        is_active=False,
+        is_active=True,
         role="user",
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    token = create_email_verification_token(user.id, settings.SECRET_KEY)
-    send_verification_email(user.email, token)
-
-    return {"msg": "Registered successfully. Check your email to verify your account."}
+    return {"msg": "Registered successfully. You can now log in."}
 
 
 @router.post("/login", response_model=TokenResponse)

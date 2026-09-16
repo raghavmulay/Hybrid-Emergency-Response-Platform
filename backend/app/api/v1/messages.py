@@ -116,6 +116,7 @@ def get_messages(
 
 
 @router.get("/admin/emergency-messages", response_model=List[MessageOut])
+@router.get("/messages/emergency", response_model=List[MessageOut])
 def list_emergency_messages(
     db: Session = Depends(get_db),
     _admin: User = Depends(get_current_admin),

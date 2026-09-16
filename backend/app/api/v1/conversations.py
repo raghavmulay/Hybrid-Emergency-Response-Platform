@@ -53,6 +53,7 @@ def create_conversation(
     return convo
 
 
+@router.get("", response_model=List[ConversationOut])
 @router.get("/", response_model=List[ConversationOut])
 def list_my_conversations(
     skip: int = 0,

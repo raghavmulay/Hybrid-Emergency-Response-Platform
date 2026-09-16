@@ -44,10 +44,10 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg bg-white p-6 shadow"
+        className="w-full max-w-sm space-y-4 rounded-lg bg-white dark:bg-gray-800 p-6 shadow"
       >
         <h2 className="text-center text-2xl font-semibold">Register</h2>
         {msg && (
@@ -66,7 +66,7 @@ export default function RegisterPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full rounded border p-2"
+          className="w-full rounded border dark:border-gray-700 dark:bg-gray-700 p-2"
         />
         <div className="relative">
           <input
@@ -75,7 +75,7 @@ export default function RegisterPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full rounded border p-2"
+            className="w-full rounded border dark:border-gray-700 dark:bg-gray-700 p-2"
           />
           <button
             type="button"
@@ -91,7 +91,7 @@ export default function RegisterPage() {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
-          className="w-full rounded border p-2"
+          className="w-full rounded border dark:border-gray-700 dark:bg-gray-700 p-2"
         />
         <button
           type="submit"

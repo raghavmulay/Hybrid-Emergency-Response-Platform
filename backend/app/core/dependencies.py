@@ -14,16 +14,6 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    # Special case for hard‑coded admin token used by frontend
-    if token == "admin-token":
-        # Return a dummy admin user without DB lookup
-        dummy_admin = User(
-            id=0,
-            email="admin@gmail.com",
-            role="admin",
-            is_active=True,
-        )
-        return dummy_admin
     payload = decode_access_token(token, settings.SECRET_KEY)
     if payload is None:
         raise HTTPException(
@@ -59,5 +49,14 @@ def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required",
+        )
+    return current_user
+
+
+def get_current_responder(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "responder":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Responder privileges required",
         )
     return current_user

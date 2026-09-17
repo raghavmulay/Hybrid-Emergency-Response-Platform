@@ -24,10 +24,13 @@ from app.core.security import (
 )
 from app.db.models import User, PredefinedMessage
 
-# ────────────────── In-memory SQLite for tests ───────────────────────────────
-TEST_DATABASE_URL = "sqlite:///./test_emergency.db"
+from sqlalchemy.pool import StaticPool
 
-engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    "sqlite://",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -39,16 +42,9 @@ def override_get_db():
         db.close()
 
 
+# Install override BEFORE TestClient so on_startup uses the test DB
 app.dependency_overrides[get_db] = override_get_db
-
-
-@pytest.fixture(autouse=True, scope="function")
-def setup_db():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-
+Base.metadata.create_all(bind=engine)
 client = TestClient(app)
 
 

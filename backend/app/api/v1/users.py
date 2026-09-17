@@ -51,7 +51,7 @@ def update_role(
     _admin: User = Depends(get_current_admin),
 ):
     """Admin only: change a user's role."""
-    allowed_roles = {"user", "admin"}
+    allowed_roles = {"user", "admin", "responder"}
     if body.role not in allowed_roles:
         raise HTTPException(status_code=400, detail=f"Role must be one of {allowed_roles}")
     user = db.query(User).filter(User.id == user_id).first()

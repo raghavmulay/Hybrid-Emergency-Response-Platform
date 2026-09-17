@@ -23,6 +23,7 @@ const PRIORITY_BADGES: Record<string, string> = {
 
 export default function ConversationDetail() {
   const { id } = useParams<{ id: string }>();
+
   const [text, setText] = useState("");
   const [isEmergency, setIsEmergency] = useState(false);
   const [priority, setPriority] = useState("HIGH");

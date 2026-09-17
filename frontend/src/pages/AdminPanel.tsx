@@ -3,9 +3,16 @@ import { api } from "../api/client";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
-import MessageMap from "../components/MessageMap";
 import LocationModal from "../components/LocationModal";
-
+import { listIncidents, updateIncidentStatus } from "../api/incidents";
+import { suggestResponders, assignResponder, listResponders } from "../api/responders";
+import { useIncidentSocket } from "../hooks/useIncidentSocket";
+import { useQuery as useAuditQuery } from "@tanstack/react-query";
+import { getAuditLogs } from "../api/audit";
+import type { AuditLogEntry } from "../api/audit";
+import { INCIDENT_TYPE_LABELS, PRIORITY_BADGE_CLASSES, PRIORITY_LABELS, STATUS_LABELS, ADMIN_ALLOWED_STATUSES, ASSIGNMENT_STATUS_LABELS, AVAILABILITY_BADGE, AVAILABILITY_LABELS } from "../constants/incidentConfig";
+import type { IncidentStatus, Responder } from "../types/incident";
+import IncidentMap from "../components/IncidentMap";
 interface Conversation {
   id: number;
   title?: string | null;
@@ -50,7 +57,15 @@ const PRIORITY_BADGE: Record<string, string> = {
 export default function AdminPanel() {
   const [page, setPage] = useState(0);
   const [filterPriority, setFilterPriority] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"map" | "feed" | "chats">("map");
+  const [activeTab, setActiveTab] = useState<"map" | "feed" | "chats" | "incidents" | "dispatch" | "audit">("incidents");
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditAction, setAuditAction] = useState("");
+  const [auditEntityType, setAuditEntityType] = useState("");
+  // Command Center state
+  const [selectedIncidentId, setSelectedIncidentId] = useState<number | null>(null);
+  const [ccFilterStatus, setCcFilterStatus] = useState<string>("all");
+  const [ccFilterPriority, setCcFilterPriority] = useState<string>("all");
+  const [assigningResponderId, setAssigningResponderId] = useState<number | null>(null);
   const [selectedMapMsg, setSelectedMapMsg] = useState<EmergencyMessage | null>(null);
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null);
   const [selectedConvId, setSelectedConvId] = useState<number | null>(null);
@@ -62,6 +77,67 @@ export default function AdminPanel() {
   const [editPriority, setEditPriority] = useState("");
 
   const queryClient = useQueryClient();
+  const { incidentCreated, incidentUpdated, connectionStatus } = useIncidentSocket();
+
+  // Incidents list
+  const { data: incidentData, isLoading: incidentsLoading } = useQuery({
+    queryKey: ["adminIncidents"],
+    queryFn: async () => listIncidents({ limit: 100 }),
+    refetchInterval: 10000, // backup refresh
+  });
+  const incidentList = incidentData?.incidents ?? [];
+
+  // Update incident status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: IncidentStatus }) => 
+      updateIncidentStatus(id, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminIncidents"] });
+    }
+  });
+
+  // Re-fetch on new incidents / assignments
+  if (incidentCreated || incidentUpdated) {
+    queryClient.invalidateQueries({ queryKey: ["adminIncidents"] });
+    queryClient.invalidateQueries({ queryKey: ["ccIncidents"] });
+  }
+
+  // Command Center: all incidents
+  const { data: ccData } = useQuery({
+    queryKey: ["ccIncidents"],
+    queryFn: () => listIncidents({ limit: 200 }),
+    refetchInterval: 10000,
+  });
+  const ccIncidents = (ccData?.incidents ?? []).filter((inc) => {
+    const statusOk = ccFilterStatus === "all" || inc.status === ccFilterStatus;
+    const priorityOk = ccFilterPriority === "all" || inc.priority === ccFilterPriority;
+    return statusOk && priorityOk;
+  });
+
+  // Responders list
+  const { data: allResponders = [] } = useQuery<Responder[]>({
+    queryKey: ["allResponders"],
+    queryFn: listResponders,
+    refetchInterval: 15000,
+  });
+
+  // Suggested responders for selected incident
+  const { data: suggestedResponders = [] } = useQuery<Responder[]>({
+    queryKey: ["suggestedResponders", selectedIncidentId],
+    queryFn: () => suggestResponders(selectedIncidentId!),
+    enabled: !!selectedIncidentId,
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: ({ incidentId, responderId }: { incidentId: number; responderId: number }) =>
+      assignResponder(incidentId, responderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ccIncidents"] });
+      queryClient.invalidateQueries({ queryKey: ["adminIncidents"] });
+      queryClient.invalidateQueries({ queryKey: ["suggestedResponders", selectedIncidentId] });
+      setAssigningResponderId(null);
+    },
+  });
 
   // Conversations with pagination
   const { data: convData, isLoading: convLoading } = useQuery({
@@ -163,6 +239,18 @@ export default function AdminPanel() {
     setSelectedMapMsg(msg);
   };
 
+  // Audit logs
+  const { data: auditData, isLoading: auditLoading } = useAuditQuery({
+    queryKey: ["auditLogs", auditPage, auditAction, auditEntityType],
+    queryFn: () => getAuditLogs({
+      page: auditPage,
+      page_size: 20,
+      action: auditAction || undefined,
+      entity_type: auditEntityType || undefined,
+    }),
+    enabled: activeTab === "audit",
+  });
+
   const canPrev = page > 0;
   const canNext = conversations.length === PAGE_LIMIT;
 
@@ -189,7 +277,21 @@ export default function AdminPanel() {
 
       {/* Main Navigation Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6 bg-white dark:bg-gray-800 p-2 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setActiveTab("incidents")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === "incidents"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
+                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            📋 Incidents Queue
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500 text-white">
+              {incidentList.filter((i) => i.status === "reported").length} New
+            </span>
+          </button>
+
           <button
             onClick={() => setActiveTab("map")}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
@@ -233,9 +335,41 @@ export default function AdminPanel() {
               {conversations.length}
             </span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("dispatch")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === "dispatch"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
+                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            🚑 Dispatch & Assign
+          </button>
+
+          <button
+            onClick={() => setActiveTab("audit")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === "audit"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
+                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            📜 Audit Logs
+          </button>
         </div>
 
         <div className="flex items-center gap-3 pr-2">
+          {/* WebSocket connection indicator */}
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+            connectionStatus === 'CONNECTED'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700'
+              : connectionStatus === 'CONNECTING'
+              ? 'bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700 animate-pulse'
+              : 'bg-gray-100 text-gray-500 border-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600'
+          }`}>
+            {connectionStatus === 'CONNECTED' ? '● Live' : connectionStatus === 'CONNECTING' ? '⚠ Reconnecting…' : '○ Offline'}
+          </span>
           <label className="flex items-center gap-2 cursor-pointer bg-gray-50 dark:bg-gray-700/60 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600">
             <div
               onClick={toggleNotifications}
@@ -271,29 +405,14 @@ export default function AdminPanel() {
                 🗺️ Real-Time Incident Map
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Live location markers reported by citizens & field responders
+                Incident locations and responder last-known positions
               </p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <select
-                value={filterPriority}
-                onChange={(e) => setFilterPriority(e.target.value)}
-                className="text-xs font-semibold rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="all">Filter All Priorities ({messages.length})</option>
-                <option value="CRITICAL">🔴 Critical ({criticalCount})</option>
-                <option value="HIGH">🟠 High ({highCount})</option>
-                <option value="MEDIUM">🟡 Medium</option>
-                <option value="LOW">🔵 Low</option>
-              </select>
-            </div>
           </div>
-
           <div className="p-4">
-            <MessageMap
-              messages={filtered}
-              selectedMessageId={highlightedMsgId}
+            <IncidentMap
+              incidents={(ccData?.incidents ?? []).filter((i) => i.latitude != null && i.longitude != null)}
+              responders={allResponders.filter((r) => r.latitude != null && r.longitude != null)}
               height="550px"
             />
           </div>
@@ -605,6 +724,424 @@ export default function AdminPanel() {
                 </div>
               )}
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* TAB 4: INCIDENTS */}
+      <div className={activeTab === "incidents" ? "block" : "hidden"}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+          <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                📋 Active Incidents
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Manage and triage structured emergency reports
+              </p>
+            </div>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
+              {incidentList.length} Total
+            </span>
+          </div>
+          
+          {incidentsLoading && <div className="p-12 text-center text-gray-400 text-sm">Loading incidents...</div>}
+
+          {!incidentsLoading && incidentList.length === 0 && (
+            <div className="p-12 text-center text-gray-400">
+              <p className="text-4xl mb-2">📭</p>
+              <p>No incidents reported.</p>
+            </div>
+          )}
+
+          {incidentList.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wide">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Incident ID</th>
+                    <th className="px-4 py-3 text-left">Type</th>
+                    <th className="px-4 py-3 text-left">Priority / Score</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Reported</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {incidentList.map((inc) => (
+                    <tr key={inc.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                      <td className="px-4 py-3">
+                        <Link to={`/incident/${inc.id}`} className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                          {inc.incident_number}
+                        </Link>
+                        {(inc as any).possible_duplicate && (
+                          <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                            ⚠ Possible Duplicate
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                        {INCIDENT_TYPE_LABELS[inc.type]}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PRIORITY_BADGE_CLASSES[inc.priority]}`}>
+                          {PRIORITY_LABELS[inc.priority]}
+                        </span>
+                        {inc.severity_score !== null && (
+                          <span className="ml-2 text-xs text-gray-500 font-medium">({inc.severity_score})</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={inc.status}
+                          onChange={(e) => updateStatusMutation.mutate({ id: inc.id, status: e.target.value as IncidentStatus })}
+                          className="text-xs font-semibold rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          {ADMIN_ALLOWED_STATUSES.map(s => (
+                            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
+                        {new Date(inc.created_at).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          to={`/incident/${inc.id}`}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+                        >
+                          Details →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* TAB 5: DISPATCH & ASSIGN */}
+      <div className={activeTab === "dispatch" ? "block" : "hidden"}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Incident list */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 flex flex-wrap items-center gap-3">
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white flex-1">🚑 Command Center</h2>
+              <select
+                value={ccFilterStatus}
+                onChange={(e) => setCcFilterStatus(e.target.value)}
+                className="text-xs rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 px-2 py-1"
+              >
+                <option value="all">All Statuses</option>
+                {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+              <select
+                value={ccFilterPriority}
+                onChange={(e) => setCcFilterPriority(e.target.value)}
+                className="text-xs rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 px-2 py-1"
+              >
+                <option value="all">All Priorities</option>
+                {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[600px] overflow-y-auto">
+              {ccIncidents.length === 0 && (
+                <div className="p-10 text-center text-gray-400 text-sm">No incidents match filters.</div>
+              )}
+              {ccIncidents.map((inc) => {
+                const aa = (inc as any).active_assignment;
+                const responder = aa ? allResponders.find((r) => r.id === aa.responder_id) : null;
+                return (
+                  <div
+                    key={inc.id}
+                    onClick={() => setSelectedIncidentId(inc.id)}
+                    className={`p-4 cursor-pointer transition-colors ${
+                      selectedIncidentId === inc.id
+                        ? "bg-indigo-50 dark:bg-indigo-950/30 border-l-4 border-indigo-500"
+                        : "hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                          {inc.incident_number}
+                        </span>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{inc.title}</p>
+                        <p className="text-xs text-gray-500">{INCIDENT_TYPE_LABELS[inc.type]}</p>
+                        {inc.address && <p className="text-xs text-gray-400">📍 {inc.address}</p>}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PRIORITY_BADGE_CLASSES[inc.priority]}`}>
+                          {PRIORITY_LABELS[inc.priority]}
+                        </span>
+                        <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                          {STATUS_LABELS[inc.status] ?? inc.status}
+                        </span>
+                        {aa && (
+                          <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
+                            {ASSIGNMENT_STATUS_LABELS[aa.status]}
+                          </span>
+                        )}
+                        {responder && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            AVAILABILITY_BADGE[responder.availability]
+                          }`}>
+                            {AVAILABILITY_LABELS[responder.availability]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Assignment panel */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {!selectedIncidentId ? (
+              <div className="p-16 text-center text-gray-400">
+                <p className="text-4xl mb-3">👈</p>
+                <p className="text-sm font-semibold">Select an incident to assign a responder</p>
+              </div>
+            ) : (() => {
+              const inc = ccIncidents.find((i) => i.id === selectedIncidentId)
+                ?? (ccData?.incidents ?? []).find((i) => i.id === selectedIncidentId);
+              if (!inc) return <div className="p-10 text-center text-gray-400 text-sm">Incident not found.</div>;
+              return (
+                <div className="flex flex-col h-full">
+                  <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                          {inc.incident_number}
+                        </span>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{inc.title}</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">{INCIDENT_TYPE_LABELS[inc.type]}</p>
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${PRIORITY_BADGE_CLASSES[inc.priority]}`}>
+                        {PRIORITY_LABELS[inc.priority]}
+                      </span>
+                    </div>
+                    {inc.resource_recommendations && inc.resource_recommendations.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Recommended Resources</p>
+                        <div className="flex flex-wrap gap-1">
+                          {inc.resource_recommendations.map((r, i) => (
+                            <span key={i} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                              ✔ {r}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 flex-1 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                        Suggested Responders
+                        <span className="ml-1 text-gray-400 font-normal">(sorted by workload &amp; distance)</span>
+                      </h4>
+                    </div>
+
+                    {suggestedResponders.length === 0 && (
+                      <div className="text-center py-8 text-gray-400 text-sm">
+                        <p className="text-3xl mb-2">😔</p>
+                        <p>No available responders.</p>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      {suggestedResponders.map((r) => (
+                        <div
+                          key={r.id}
+                          className={`p-3 rounded-xl border transition-all ${
+                            assigningResponderId === r.id
+                              ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                              : "border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-semibold text-gray-900 dark:text-white">{r.email}</p>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${AVAILABILITY_BADGE[r.availability]}`}>
+                                  {AVAILABILITY_LABELS[r.availability]}
+                                </span>
+                                <span className="text-[10px] text-gray-500">
+                                  {r.active_assignments} active
+                                </span>
+                                {r.distance_km != null && (
+                                  <span className="text-[10px] text-gray-500">
+                                    📍 {r.distance_km} km
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setAssigningResponderId(r.id);
+                                assignMutation.mutate({ incidentId: selectedIncidentId!, responderId: r.id });
+                              }}
+                              disabled={assignMutation.isPending}
+                              className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors shrink-0"
+                            >
+                              {assignMutation.isPending && assigningResponderId === r.id ? 'Assigning…' : 'Assign'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* All responders fallback */}
+                    {suggestedResponders.length === 0 && allResponders.length > 0 && (
+                      <>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-4 mb-2">All Responders</p>
+                        <div className="space-y-2">
+                          {allResponders.map((r) => (
+                            <div key={r.id} className="p-3 rounded-xl border border-gray-200 dark:border-gray-600 flex items-center justify-between gap-2">
+                              <div className="space-y-0.5">
+                                <p className="text-xs font-semibold text-gray-900 dark:text-white">{r.email}</p>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${AVAILABILITY_BADGE[r.availability]}`}>
+                                  {AVAILABILITY_LABELS[r.availability]}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setAssigningResponderId(r.id);
+                                  assignMutation.mutate({ incidentId: selectedIncidentId!, responderId: r.id });
+                                }}
+                                disabled={assignMutation.isPending || r.availability !== 'AVAILABLE'}
+                                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors shrink-0"
+                              >
+                                Assign
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
+
+      {/* TAB 6: AUDIT LOGS */}
+      <div className={activeTab === "audit" ? "block" : "hidden"}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+          <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 flex flex-wrap items-center gap-3">
+            <h2 className="text-base font-bold text-gray-900 dark:text-white flex-1">📜 Audit Logs</h2>
+            <select
+              value={auditAction}
+              onChange={(e) => { setAuditAction(e.target.value); setAuditPage(1); }}
+              className="text-xs rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 px-2 py-1"
+            >
+              <option value="">All Actions</option>
+              <option value="INCIDENT_CREATED">Incident Created</option>
+              <option value="INCIDENT_UPDATED">Incident Updated</option>
+              <option value="INCIDENT_STATUS_CHANGED">Status Changed</option>
+              <option value="RESPONDER_ASSIGNED">Responder Assigned</option>
+              <option value="ASSIGNMENT_ACCEPTED">Assignment Accepted</option>
+              <option value="ASSIGNMENT_REJECTED">Assignment Rejected</option>
+              <option value="RESPONDER_AVAILABILITY_CHANGED">Availability Changed</option>
+            </select>
+            <select
+              value={auditEntityType}
+              onChange={(e) => { setAuditEntityType(e.target.value); setAuditPage(1); }}
+              className="text-xs rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 px-2 py-1"
+            >
+              <option value="">All Entities</option>
+              <option value="INCIDENT">Incident</option>
+              <option value="ASSIGNMENT">Assignment</option>
+              <option value="RESPONDER">Responder</option>
+              <option value="USER">User</option>
+            </select>
+          </div>
+
+          {auditLoading && (
+            <div className="p-12 text-center text-gray-400 text-sm">Loading audit logs…</div>
+          )}
+
+          {!auditLoading && (auditData?.logs ?? []).length === 0 && (
+            <div className="p-12 text-center text-gray-400">
+              <p className="text-4xl mb-2">📝</p>
+              <p>No audit log entries found.</p>
+            </div>
+          )}
+
+          {(auditData?.logs ?? []).length > 0 && (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wide">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Time</th>
+                      <th className="px-4 py-3 text-left">Actor</th>
+                      <th className="px-4 py-3 text-left">Role</th>
+                      <th className="px-4 py-3 text-left">Action</th>
+                      <th className="px-4 py-3 text-left">Entity</th>
+                      <th className="px-4 py-3 text-left">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {(auditData?.logs ?? []).map((log: AuditLogEntry) => (
+                      <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-mono text-gray-700 dark:text-gray-300">
+                          {log.actor_id != null ? `#${log.actor_id}` : 'SYSTEM'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                            {log.actor_role}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                          {log.action.replace(/_/g, ' ')}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {log.entity_type}{log.entity_id != null ? ` #${log.entity_id}` : ''}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                          {log.description}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-4 flex items-center justify-between border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
+                <button
+                  onClick={() => setAuditPage((p) => Math.max(p - 1, 1))}
+                  disabled={auditPage <= 1}
+                  className="text-xs font-semibold px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-white dark:hover:bg-gray-700"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-gray-500">
+                  Page {auditPage} of {Math.ceil((auditData?.total ?? 0) / 20) || 1}
+                  {" "}&mdash; {auditData?.total ?? 0} total entries
+                </span>
+                <button
+                  onClick={() => setAuditPage((p) => p + 1)}
+                  disabled={auditPage >= Math.ceil((auditData?.total ?? 0) / 20)}
+                  className="text-xs font-semibold px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-white dark:hover:bg-gray-700"
+                >
+                  Next
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>

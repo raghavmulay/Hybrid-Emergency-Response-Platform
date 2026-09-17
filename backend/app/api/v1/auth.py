@@ -44,14 +44,14 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     user = User(
         email=req.email,
         hashed_password=get_password_hash(req.password),
-        is_active=True,
+        is_active=False,
         role="user",
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    return {"msg": "Registered successfully. You can now log in."}
+    return {"msg": "Registered successfully. Please verify your email before logging in."}
 
 
 @router.post("/login", response_model=TokenResponse)

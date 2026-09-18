@@ -51,6 +51,9 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    token = create_email_verification_token(user.id, settings.SECRET_KEY)
+    send_verification_email(user.email, token)
+
     return {"msg": "Registered successfully. Please verify your email before logging in."}
 
 

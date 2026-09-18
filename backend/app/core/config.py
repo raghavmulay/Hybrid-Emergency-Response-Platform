@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str = "admin@example.com"
     ADMIN_PASSWORD: str = "change-me"
 
+    # SMTP — set these in .env to enable real email sending
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+
+    # Base URL used in verification links
+    BASE_URL: str = "http://localhost:8000"
+
     class Config:
         env_file = ".env"
         extra = "ignore"

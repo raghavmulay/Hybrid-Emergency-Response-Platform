@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 import {
   getMyProfile,
@@ -21,6 +21,7 @@ import {
 } from '../constants/incidentConfig';
 import type { Assignment, IncidentStatus } from '../types/incident';
 import { useIncidentSocket } from '../hooks/useIncidentSocket';
+import { formatDateTime } from '../utils/time';
 
 const OPERATIONAL_TRANSITIONS: Record<string, IncidentStatus> = {
   accepted: 'en_route',
@@ -31,6 +32,8 @@ const OPERATIONAL_TRANSITIONS: Record<string, IncidentStatus> = {
 
 export default function ResponderDashboard() {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const resolvedMsg = location.state?.resolved ? location.state.incidentNumber : null;
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const { latestEvent, connectionStatus } = useIncidentSocket();
@@ -91,6 +94,18 @@ export default function ResponderDashboard() {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Resolved banner */}
+        {resolvedMsg && (
+          <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded-2xl p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">✅</span>
+              <div>
+                <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">Incident Resolved!</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">{resolvedMsg} has been successfully resolved. You are now available.</p>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Availability card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -287,7 +302,7 @@ function AssignmentCard({
             {ASSIGNMENT_STATUS_LABELS[a.status]}
           </span>
           <span className="text-xs text-gray-400">
-            {new Date(a.assigned_at).toLocaleString()}
+            {formatDateTime(a.assigned_at)}
           </span>
         </div>
       </div>

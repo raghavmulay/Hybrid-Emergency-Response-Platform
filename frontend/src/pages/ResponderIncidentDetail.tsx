@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '../components/Layout';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -34,6 +34,8 @@ export default function ResponderIncidentDetail() {
   const incidentId = parseInt(id ?? '0');
   const queryClient = useQueryClient();
 
+  const navigate = useNavigate();
+
   const { data: incident, isLoading } = useQuery({
     queryKey: ['responderIncident', incidentId],
     queryFn: () => getIncidentById(incidentId),
@@ -55,10 +57,13 @@ export default function ResponderIncidentDetail() {
   const statusMutation = useMutation({
     mutationFn: (status: IncidentStatus) =>
       updateIncidentStatus(incidentId, { status }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['responderIncident', incidentId] });
       queryClient.invalidateQueries({ queryKey: ['responderTimeline', incidentId] });
       queryClient.invalidateQueries({ queryKey: ['myAssignments'] });
+      if (data?.status === 'resolved') {
+        navigate('/responder', { state: { resolved: true, incidentNumber: data.incident_number } });
+      }
     },
   });
 

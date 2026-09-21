@@ -6,6 +6,7 @@ import { useConversationSocket, type Message, type MessageCreate } from "../hook
 import Layout from "../components/Layout";
 import MessageMap from "../components/MessageMap";
 import LocationModal from "../components/LocationModal";
+import { formatTime } from "../utils/time";
 
 const PRIORITY_COLORS: Record<string, string> = {
   CRITICAL: "bg-red-50 dark:bg-red-950/40 border-red-500 text-red-900 dark:text-red-200",
@@ -268,7 +269,7 @@ export default function ConversationDetail() {
                     </span>
                   </div>
                   <span className="text-xs text-gray-400">
-                    {new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {formatTime(m.timestamp)}
                   </span>
                 </div>
 

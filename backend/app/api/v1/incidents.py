@@ -437,12 +437,15 @@ async def update_incident_status(
     old_status = incident.status.value
     _transition(incident, new_status, current_user, payload.reason or f"Status updated to {new_status.value}", db)
 
-    # Mark assignment completed when incident resolved
+    # Mark assignment completed and free responder when incident resolved
     if new_status == IncidentStatus.resolved:
         for a in incident.assignments:
             if a.status == AssignmentStatus.accepted:
                 a.status = AssignmentStatus.completed
                 a.completed_at = datetime.utcnow()
+                responder = db.query(User).filter(User.id == a.responder_id).first()
+                if responder:
+                    responder.availability = "AVAILABLE"
 
     create_audit_log(
         db, current_user, "INCIDENT_STATUS_CHANGED", "INCIDENT", incident.id,

@@ -13,6 +13,7 @@ import {
   STATUS_LABELS,
 } from '../constants/incidentConfig';
 import { useIncidentSocket } from '../hooks/useIncidentSocket';
+import { formatDateTime } from '../utils/time';
 
 // Fix Leaflet icon
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -123,8 +124,8 @@ export default function IncidentDetail() {
 
           {/* Details grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-700 pt-5">
-            <InfoItem label="Reported" value={new Date(incident.created_at).toLocaleString()} />
-            <InfoItem label="Last Updated" value={new Date(incident.updated_at).toLocaleString()} />
+            <InfoItem label="Reported" value={formatDateTime(incident.created_at)} />
+            <InfoItem label="Last Updated" value={formatDateTime(incident.updated_at)} />
             {incident.severity_score != null && (
               <InfoItem label="Severity Score" value={`${incident.severity_score}/100`} />
             )}
@@ -247,7 +248,7 @@ export default function IncidentDetail() {
                       {STATUS_LABELS[entry.status]}
                     </span>
                     <span className="text-xs text-gray-400">
-                      {new Date(entry.changed_at).toLocaleString()}
+                      {formatDateTime(entry.changed_at)}
                     </span>
                   </div>
                   {entry.reason && (

@@ -10,6 +10,7 @@ import {
   STATUS_LABELS,
 } from '../constants/incidentConfig';
 import { useIncidentSocket } from '../hooks/useIncidentSocket';
+import { formatDateTime } from '../utils/time';
 
 export default function MyIncidents() {
   const queryClient = useQueryClient();
@@ -124,9 +125,9 @@ export default function MyIncidents() {
 
                     {/* Timestamps */}
                     <p className="text-xs text-gray-400">
-                      Reported: {new Date(inc.created_at).toLocaleString()}
+                      Reported: {formatDateTime(inc.created_at)}
                       {inc.updated_at !== inc.created_at && (
-                        <> · Updated: {new Date(inc.updated_at).toLocaleString()}</>
+                        <> · Updated: {formatDateTime(inc.updated_at)}</>
                       )}
                     </p>
                   </div>

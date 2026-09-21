@@ -11,6 +11,7 @@ import { useQuery as useAuditQuery } from "@tanstack/react-query";
 import { getAuditLogs } from "../api/audit";
 import type { AuditLogEntry } from "../api/audit";
 import { INCIDENT_TYPE_LABELS, PRIORITY_BADGE_CLASSES, PRIORITY_LABELS, STATUS_LABELS, ADMIN_ALLOWED_STATUSES, ASSIGNMENT_STATUS_LABELS, AVAILABILITY_BADGE, AVAILABILITY_LABELS } from "../constants/incidentConfig";
+import { formatDateTime, formatTime } from "../utils/time";
 import type { IncidentStatus, Responder } from "../types/incident";
 import IncidentMap from "../components/IncidentMap";
 interface Conversation {
@@ -57,7 +58,7 @@ const PRIORITY_BADGE: Record<string, string> = {
 export default function AdminPanel() {
   const [page, setPage] = useState(0);
   const [filterPriority, setFilterPriority] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"map" | "feed" | "chats" | "incidents" | "dispatch" | "audit">("incidents");
+  const [activeTab, setActiveTab] = useState<"map" | "feed" | "chats" | "incidents" | "dispatch" | "audit" | "users">("incidents");
   const [auditPage, setAuditPage] = useState(1);
   const [auditAction, setAuditAction] = useState("");
   const [auditEntityType, setAuditEntityType] = useState("");
@@ -357,6 +358,17 @@ export default function AdminPanel() {
           >
             📜 Audit Logs
           </button>
+
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === "users"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
+                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            👥 User Management
+          </button>
         </div>
 
         <div className="flex items-center gap-3 pr-2">
@@ -481,7 +493,7 @@ export default function AdminPanel() {
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                           Channel #{msg.conversation_id} · Citizen #{msg.sender_id} ·{" "}
-                          {new Date(msg.timestamp).toLocaleString()}
+                          {new Date(msg.timestamp + "").endsWith("Z") ? new Date(msg.timestamp).toLocaleString() : formatDateTime(msg.timestamp)}
                         </span>
                       </div>
 
@@ -602,7 +614,7 @@ export default function AdminPanel() {
                             Citizen #{c.owner_id}
                           </td>
                           <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
-                            {new Date(c.created_at).toLocaleString()}
+                            {formatDateTime(c.created_at)}
                           </td>
                           <td className="px-4 py-3 text-right space-x-2">
                             <button
@@ -701,7 +713,7 @@ export default function AdminPanel() {
                           {m.is_emergency ? `🚨 ${m.priority ?? "EMERGENCY"}` : "Citizen"} #{m.sender_id}
                         </span>
                         <span className="text-gray-400">
-                          {new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatTime(m.timestamp)}
                         </span>
                       </div>
                       <p className="font-medium text-gray-900 dark:text-gray-100">{m.content}</p>
@@ -803,7 +815,7 @@ export default function AdminPanel() {
                         </select>
                       </td>
                       <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
-                        {new Date(inc.created_at).toLocaleString()}
+                        {formatDateTime(inc.created_at)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Link
@@ -1097,7 +1109,7 @@ export default function AdminPanel() {
                     {(auditData?.logs ?? []).map((log: AuditLogEntry) => (
                       <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                         <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString()}
+                          {formatDateTime(log.created_at)}
                         </td>
                         <td className="px-4 py-3 text-xs font-mono text-gray-700 dark:text-gray-300">
                           {log.actor_id != null ? `#${log.actor_id}` : 'SYSTEM'}
@@ -1144,6 +1156,11 @@ export default function AdminPanel() {
             </>
           )}
         </div>
+      </div>
+
+      {/* TAB 7: USER MANAGEMENT */}
+      <div className={activeTab === "users" ? "block" : "hidden"}>
+        <UserManagementTab />
       </div>
 
       {/* Location Map Modal */}
@@ -1205,5 +1222,98 @@ export default function AdminPanel() {
         </div>
       )}
     </Layout>
+  );
+}
+
+function UserManagementTab() {
+  const queryClient = useQueryClient();
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  const { data: users = [], isLoading } = useQuery<{ id: number; email: string; role: string; is_active: boolean }[]>({
+    queryKey: ["allUsers"],
+    queryFn: async () => (await api.get("/users/")).data,
+  });
+
+  const roleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
+      await api.patch(`/users/${userId}/role`, { role });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+      setUpdatingId(null);
+    },
+  });
+
+  const ROLE_BADGE: Record<string, string> = {
+    admin: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    responder: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    user: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">👥 User Management</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Change user roles — promote citizens to responders or admins</p>
+        </div>
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
+          {users.length} Users
+        </span>
+      </div>
+
+      {isLoading && <div className="p-12 text-center text-gray-400 text-sm">Loading users…</div>}
+      {!isLoading && users.length === 0 && <div className="p-12 text-center text-gray-400">No users found.</div>}
+
+      {users.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="px-4 py-3 text-left">ID</th>
+                <th className="px-4 py-3 text-left">Email</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-left">Current Role</th>
+                <th className="px-4 py-3 text-left">Change Role</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {users.map((u) => (
+                <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500">#{u.id}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{u.email}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      u.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                    }`}>
+                      {u.is_active ? "Active" : "Unverified"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${ROLE_BADGE[u.role] ?? ""}`}>
+                      {u.role}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {(["user", "responder", "admin"] as const).filter((r) => r !== u.role).map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => { setUpdatingId(u.id); roleMutation.mutate({ userId: u.id, role: r }); }}
+                          disabled={roleMutation.isPending && updatingId === u.id}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 ${ROLE_BADGE[r]} border border-current`}
+                        >
+                          → {r}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

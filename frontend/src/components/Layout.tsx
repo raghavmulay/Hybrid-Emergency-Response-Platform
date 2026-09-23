@@ -119,8 +119,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
-      <header className="bg-indigo-600 dark:bg-indigo-950 text-white shadow-md border-b border-indigo-700/40 sticky top-0 z-40">
+    <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
+      <header className="bg-indigo-600 dark:bg-indigo-900 text-white shadow-sm border-b border-indigo-700/30 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
           {/* Brand */}
           <Link
@@ -156,7 +156,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             {isUser && (
               <button
                 onClick={() => setShowSOS(true)}
-                className="text-xs font-extrabold bg-red-600 hover:bg-red-500 active:scale-95 text-white px-3 py-1.5 rounded-xl transition-all shadow-md border border-red-400 animate-pulse"
+                className="text-xs font-extrabold bg-red-600 hover:bg-red-500 active:scale-95 text-white px-3 py-1.5 rounded-lg transition-all shadow-sm border border-red-500/50"
                 title="Trigger SOS emergency alert"
               >
                 🆘 SOS
@@ -166,7 +166,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             {isAuthenticated && (
               <button
                 onClick={handleLogout}
-                className="text-xs font-semibold bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                className="text-xs font-semibold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors"
               >
                 Sign Out
               </button>
@@ -175,26 +175,26 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6" style={{ backgroundColor: 'var(--bg)' }}>
         {children}
       </main>
 
       {/* SOS Modal */}
       {showSOS && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5 border-2 border-red-500">
+          <div className="rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5 border-2 border-red-500" style={{ backgroundColor: 'var(--surface)', color: 'var(--text)' }}>
             {!sosResult && !sosMutation.isPending && (
               <>
                 <div className="text-center">
                   <div className="text-6xl mb-3">🆘</div>
-                  <h2 className="text-xl font-extrabold text-gray-900 dark:text-white">Trigger SOS Alert?</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  <h2 className="text-xl font-extrabold" style={{ color: 'var(--text)' }}>Trigger SOS Alert?</h2>
+                  <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
                     This will immediately create an emergency incident with your current location (if available).
                     Only use this in a real emergency.
                   </p>
                 </div>
                 {sosError && (
-                  <div className="bg-red-50 dark:bg-red-900/30 border border-red-300 rounded-xl p-3 text-sm text-red-700 dark:text-red-300">
+                  <div className="border border-red-400/50 rounded-lg p-3 text-sm text-red-500" style={{ backgroundColor: 'color-mix(in srgb, #ef4444 8%, var(--bg))' }}>
                     {sosError}
                   </div>
                 )}
@@ -207,7 +207,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   </button>
                   <button
                     onClick={closeSOS}
-                    className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-semibold transition-colors"
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold transition-colors hover:opacity-80"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
                   >
                     Cancel
                   </button>
@@ -218,8 +219,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             {sosMutation.isPending && (
               <div className="text-center py-4">
                 <div className="text-4xl mb-3 animate-pulse">📡</div>
-                <p className="font-bold text-gray-900 dark:text-white">Sending SOS alert…</p>
-                <p className="text-xs text-gray-400 mt-1">Attempting to attach location…</p>
+                <p className="font-bold" style={{ color: 'var(--text)' }}>Sending SOS alert…</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>Attempting to attach location…</p>
               </div>
             )}
 
@@ -227,19 +228,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <>
                 <div className="text-center">
                   <div className="text-6xl mb-3">✅</div>
-                  <h2 className="text-xl font-extrabold text-gray-900 dark:text-white">SOS Submitted</h2>
+                  <h2 className="text-xl font-extrabold" style={{ color: 'var(--text)' }}>SOS Submitted</h2>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-2 border border-gray-200 dark:border-gray-600 text-sm">
+                <div className="rounded-xl p-4 space-y-2 text-sm" style={{ backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
                   <p>
-                    <span className="text-gray-500">Incident: </span>
+                    <span style={{ color: 'var(--text-muted)' }}>Incident: </span>
                     <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{sosResult.incident_number}</span>
                   </p>
                   <p>
-                    <span className="text-gray-500">Status: </span>
+                    <span style={{ color: 'var(--text-muted)' }}>Status: </span>
                     <span className="font-semibold">{sosResult.status.toUpperCase()}</span>
                   </p>
                 </div>
-                <p className="text-xs text-gray-400 text-center">
+                <p className="text-xs text-center" style={{ color: 'var(--text-dim)' }}>
                   Your incident has been recorded. If this is a life-threatening emergency, also call your local emergency number.
                 </p>
                 <div className="flex gap-3">
@@ -249,7 +250,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   >
                     View My Incidents
                   </button>
-                  <button onClick={closeSOS} className="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-semibold transition-colors">
+                  <button onClick={closeSOS} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>
                     Close
                   </button>
                 </div>

@@ -1,3 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --bg:        #ffffff;
+    --bg-subtle: #f9f9f9;
+    --bg-muted:  #f2f2f2;
+    --surface:   #ffffff;
+    --border:    #e5e5e5;
+    --text:      #0d0d0d;
+    --text-muted:#737373;
+    --text-dim:  #a3a3a3;
+  }
+
+  .dark {
+    --bg:        #000000;
+    --bg-subtle: #0d0d0d;
+    --bg-muted:  #1a1a1a;
+    --surface:   #111111;
+    --border:    #2a2a2a;
+    --text:      #ffffff;
+    --text-muted:#a3a3a3;
+    --text-dim:  #525252;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+}
+
+@layer components {
+  /* Cards */
+  .card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
+
+  /* Inputs */
+  input, textarea, select {
+    background-color: var(--bg-subtle) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+  }
+  input::placeholder, textarea::placeholder {
+    color: var(--text-dim) !important;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+  }
+}
+
+/* ── Pure-neutral dark mode overrides ─────────────────────────────────────
+   Belt-and-suspenders: catches any dark:bg-gray-* / dark:bg-slate-* etc.
+   that Tailwind emits before the config override takes full effect.
+──────────────────────────────────────────────────────────────────────── */
+.dark .bg-white,
+.dark .bg-gray-50,  .dark .bg-gray-100,
+.dark .bg-slate-50, .dark .bg-slate-100,
+.dark .bg-zinc-50,  .dark .bg-zinc-100  { background-color: #111111 !important; }
+
+.dark .bg-gray-800, .dark .bg-gray-900, .dark .bg-gray-950,
+.dark .bg-slate-800,.dark .bg-slate-900,.dark .bg-slate-950,
+.dark .bg-zinc-800, .dark .bg-zinc-900, .dark .bg-zinc-950  { background-color: #111111 !important; }
+
+.dark .bg-gray-700, .dark .bg-slate-700, .dark .bg-zinc-700 { background-color: #1a1a1a !important; }
+.dark .bg-gray-600, .dark .bg-slate-600, .dark .bg-zinc-600 { background-color: #222222 !important; }
+
+.dark .text-gray-900, .dark .text-gray-800,
+.dark .text-slate-900,.dark .text-slate-800,
+.dark .text-zinc-900, .dark .text-zinc-800  { color: #ffffff !important; }
+
+.dark .text-gray-100, .dark .text-gray-200,
+.dark .text-slate-100,.dark .text-slate-200,
+.dark .text-zinc-100, .dark .text-zinc-200  { color: #ffffff !important; }
+
+.dark .text-gray-400, .dark .text-gray-500,
+.dark .text-slate-400,.dark .text-slate-500,
+.dark .text-zinc-400, .dark .text-zinc-500  { color: #a3a3a3 !important; }
+
+.dark .text-gray-600, .dark .text-gray-700,
+.dark .text-slate-600,.dark .text-slate-700,
+.dark .text-zinc-600, .dark .text-zinc-700  { color: #737373 !important; }
+
+.dark .border-gray-200, .dark .border-gray-300,
+.dark .border-slate-200,.dark .border-slate-300,
+.dark .border-zinc-200, .dark .border-zinc-300  { border-color: #2a2a2a !important; }
+
+.dark .border-gray-600, .dark .border-gray-700,
+.dark .border-slate-600,.dark .border-slate-700,
+.dark .border-zinc-600, .dark .border-zinc-700  { border-color: #2a2a2a !important; }
+
+.dark .divide-gray-100, .dark .divide-gray-700,
+.dark .divide-slate-700,.dark .divide-zinc-700  { --tw-divide-opacity: 1; border-color: #2a2a2a !important; }
+
+/* Light mode: no blue/warm tints on backgrounds */
+.bg-gray-50, .bg-slate-50, .bg-zinc-50   { background-color: #f9f9f9 !important; }
+.bg-gray-100, .bg-slate-100, .bg-zinc-100 { background-color: #f2f2f2 !important; }
+

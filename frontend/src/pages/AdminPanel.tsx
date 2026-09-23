@@ -277,15 +277,16 @@ export default function AdminPanel() {
       </div>
 
       {/* Main Navigation Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 bg-white dark:bg-gray-800 p-2 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 p-2 rounded-2xl shadow-sm" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setActiveTab("incidents")}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === "incidents"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "hover:opacity-70"
             }`}
+            style={activeTab !== "incidents" ? { color: 'var(--text-muted)' } : {}}
           >
             📋 Incidents Queue
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500 text-white">
@@ -298,8 +299,9 @@ export default function AdminPanel() {
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === "map"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "hover:opacity-70"
             }`}
+            style={activeTab !== "map" ? { color: 'var(--text-muted)' } : {}}
           >
             🗺️ Live Incident Map
             {locatedCount > 0 && (
@@ -314,8 +316,9 @@ export default function AdminPanel() {
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === "feed"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "hover:opacity-70"
             }`}
+            style={activeTab !== "feed" ? { color: 'var(--text-muted)' } : {}}
           >
             🚨 Emergency Feed
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
@@ -328,8 +331,9 @@ export default function AdminPanel() {
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === "chats"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "hover:opacity-70"
             }`}
+            style={activeTab !== "chats" ? { color: 'var(--text-muted)' } : {}}
           >
             💬 Citizen Chats & Channels
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
@@ -342,8 +346,9 @@ export default function AdminPanel() {
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === "dispatch"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "hover:opacity-70"
             }`}
+            style={activeTab !== "dispatch" ? { color: 'var(--text-muted)' } : {}}
           >
             🚑 Dispatch & Assign
           </button>
@@ -353,8 +358,9 @@ export default function AdminPanel() {
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === "audit"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "hover:opacity-70"
             }`}
+            style={activeTab !== "audit" ? { color: 'var(--text-muted)' } : {}}
           >
             📜 Audit Logs
           </button>
@@ -364,8 +370,9 @@ export default function AdminPanel() {
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === "users"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "hover:opacity-70"
             }`}
+            style={activeTab !== "users" ? { color: 'var(--text-muted)' } : {}}
           >
             👥 User Management
           </button>
@@ -382,7 +389,7 @@ export default function AdminPanel() {
           }`}>
             {connectionStatus === 'CONNECTED' ? '● Live' : connectionStatus === 'CONNECTING' ? '⚠ Reconnecting…' : '○ Offline'}
           </span>
-          <label className="flex items-center gap-2 cursor-pointer bg-gray-50 dark:bg-gray-700/60 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600">
+          <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-xl" style={{ backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
             <div
               onClick={toggleNotifications}
               className={`relative w-8 h-4 rounded-full transition-colors cursor-pointer ${
@@ -395,7 +402,7 @@ export default function AdminPanel() {
                 }`}
               />
             </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
               Audio Alerts
             </span>
           </label>
@@ -493,7 +500,7 @@ export default function AdminPanel() {
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                           Channel #{msg.conversation_id} · Citizen #{msg.sender_id} ·{" "}
-                          {new Date(msg.timestamp + "").endsWith("Z") ? new Date(msg.timestamp).toLocaleString() : formatDateTime(msg.timestamp)}
+                          {formatDateTime(msg.timestamp)}
                         </span>
                       </div>
 

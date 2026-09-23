@@ -44,66 +44,80 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: 'var(--bg)' }}>
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg bg-white dark:bg-gray-800 p-6 shadow"
+        className="w-full max-w-sm space-y-4 rounded-xl p-8 shadow-xl"
+        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
       >
-        <h2 className="text-center text-2xl font-semibold">Register</h2>
+        <div className="text-center mb-2">
+          <div className="text-4xl mb-2">🚨</div>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Create Account</h2>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Join the Emergency Response Platform</p>
+        </div>
         {msg && (
-          <p className="text-green-600 text-center text-sm" role="status">
-            {msg}
+          <p className="text-emerald-500 text-center text-sm font-medium" role="status">
+            ✓ {msg}
           </p>
         )}
         {error && (
-          <p className="text-red-600 text-center text-sm" role="alert">
+          <p className="text-red-500 text-center text-sm font-medium" role="alert">
             {error}
           </p>
         )}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full rounded border dark:border-gray-700 dark:bg-gray-700 p-2"
-        />
-        <div className="relative">
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Email Address</label>
+          <input
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Password</label>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Min 6 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full rounded-lg px-3 py-2 pr-16 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-indigo-500 font-medium"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Confirm Password</label>
           <input
             type={showPassword ? "text" : "password"}
-            placeholder="Password (min 6 chars)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Repeat password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             required
-            className="w-full rounded border dark:border-gray-700 dark:bg-gray-700 p-2"
+            className="w-full rounded-lg px-3 py-2 text-sm"
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword((s) => !s)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-indigo-600"
-          >
-            {showPassword ? "Hide" : "Show"}
-          </button>
         </div>
-        <input
-          type={showPassword ? "text" : "password"}
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          className="w-full rounded border dark:border-gray-700 dark:bg-gray-700 p-2"
-        />
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-indigo-600 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="w-full rounded-lg bg-indigo-600 hover:bg-indigo-700 py-2.5 text-white font-semibold text-sm disabled:opacity-50 transition-colors"
         >
-          {loading ? "Registering…" : "Register"}
+          {loading ? "Creating account…" : "Create Account"}
         </button>
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
           Already have an account?{' '}
-          <Link to="/login" className="text-indigo-600 hover:underline">
-            Login
+          <Link to="/login" className="text-indigo-500 font-medium hover:underline">
+            Sign in
           </Link>
         </p>
       </form>

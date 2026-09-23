@@ -48,26 +48,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🚨</div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Emergency Response</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Hybrid Emergency Response Platform</p>
+          <h1 className="text-3xl font-bold" style={{ color: 'var(--text)' }}>Emergency Response</h1>
+          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>Hybrid Emergency Response Platform</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 space-y-5">
+        <div className="rounded-2xl shadow-xl p-8 space-y-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           {/* Role Tabs */}
-          <div className="flex rounded-lg overflow-hidden border dark:border-gray-700">
+          <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
             <button
               type="button"
               onClick={() => { setRole("user"); setError(""); }}
               className={`flex-1 py-2 text-sm font-semibold transition-colors ${
                 role === "user"
                   ? "bg-indigo-600 text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  : "hover:opacity-80"
               }`}
+              style={role !== "user" ? { backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' } : {}}
             >
               👤 Citizen / Responder
             </button>
@@ -77,32 +78,33 @@ export default function LoginPage() {
               className={`flex-1 py-2 text-sm font-semibold transition-colors ${
                 role === "admin"
                   ? "bg-red-600 text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  : "hover:opacity-80"
               }`}
+              style={role !== "admin" ? { backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' } : {}}
             >
               🛡️ Admin
             </button>
           </div>
 
-          <h2 className="text-xl font-bold text-center text-gray-800 dark:text-white">
+          <h2 className="text-xl font-bold text-center" style={{ color: 'var(--text)' }}>
             {role === "admin" ? "Admin Command Centre Login" : "Citizen Login"}
           </h2>
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg px-4 py-3 text-sm">
+            <div className="border border-red-400/50 rounded-lg px-4 py-3 text-sm text-red-500" style={{ backgroundColor: 'color-mix(in srgb, #ef4444 8%, var(--bg))' }}>
               {error}
             </div>
           )}
 
           {role === "admin" && (
-            <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-600 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            <div className="border border-amber-400/50 rounded-lg px-4 py-3 text-sm text-amber-600 dark:text-amber-400" style={{ backgroundColor: 'color-mix(in srgb, #f59e0b 8%, var(--bg))' }}>
               ⚠️ Admin credentials are required. Contact your system administrator if you don't have access.
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
                 Email Address
               </label>
               <input
@@ -111,12 +113,12 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="w-full rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-lg px-3 py-2 text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
                 Password
               </label>
               <div className="relative">
@@ -126,12 +128,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full rounded-lg px-3 py-2 pr-16 text-sm"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-indigo-600 dark:text-indigo-400 font-medium"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-indigo-500 font-medium"
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
@@ -152,9 +154,9 @@ export default function LoginPage() {
           </form>
 
           {role === "user" && (
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               No account?{" "}
-              <Link to="/register" className="text-indigo-600 dark:text-indigo-400 font-medium hover:underline">
+              <Link to="/register" className="text-indigo-500 font-medium hover:underline">
                 Register here
               </Link>
             </p>

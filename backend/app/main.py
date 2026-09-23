@@ -1,7 +1,10 @@
 import json
 import logging
+import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.core.security import decode_access_token, get_password_hash
@@ -164,6 +167,25 @@ async def websocket_endpoint(
         logger.info(f"WS disconnected: user={user_id} room={conversation_id}")
 
 
-@app.get("/")
-def root():
-    return {"msg": "Emergency Info System API is running. Visit /docs for the API reference."}
+# ─────────────────────── Static Frontend ────────────────────────────────────
+_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
+if os.path.isdir(_dist):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_dist, "assets")), name="assets")
+
+    @app.get("/")
+    def serve_index():
+        return FileResponse(os.path.join(_dist, "index.html"))
+
+    @app.get("/{full_path:path}")
+    def serve_spa(full_path: str):
+        if full_path.startswith("api/") or full_path.startswith("ws/"):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        file = os.path.join(_dist, full_path)
+        if os.path.isfile(file):
+            return FileResponse(file)
+        return FileResponse(os.path.join(_dist, "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {"msg": "Emergency Info System API is running. Visit /docs for the API reference."}

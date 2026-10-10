@@ -1,46 +1,68 @@
 from typing import Tuple, Dict, Any
 from app.db.models import IncidentType, IncidentPriority
 
+
 def calculate_severity(inc_type: IncidentType, details: Dict[str, Any]) -> Tuple[int, IncidentPriority, str]:
     score = 0
     reasons = []
 
-    # Base score by type
-    if inc_type in (IncidentType.fire, IncidentType.building_collapse):
+    d = details or {}
+
+    # ── Base score by disaster type ──────────────────────────────────────────
+    HIGH_RISK = (IncidentType.earthquake, IncidentType.building_collapse, IncidentType.mass_casualty)
+    MED_RISK  = (IncidentType.wildfire, IncidentType.cyclone, IncidentType.industrial_hazard,
+                 IncidentType.infrastructure_failure)
+
+    if inc_type in HIGH_RISK:
         score += 40
-        reasons.append(f"High-risk incident type ({inc_type.value})")
-    elif inc_type in (IncidentType.medical, IncidentType.road_accident, IncidentType.security_emergency):
+        reasons.append(f"High-risk disaster type ({inc_type.value})")
+    elif inc_type in MED_RISK:
         score += 30
-        reasons.append(f"Moderate-to-high risk type ({inc_type.value})")
+        reasons.append(f"Moderate-risk disaster type ({inc_type.value})")
     else:
         score += 10
-        reasons.append(f"Standard risk type ({inc_type.value})")
+        reasons.append(f"Standard disaster type ({inc_type.value})")
 
-    # Analyze details
-    if details.get("injured") or (isinstance(details.get("injured"), int) and details.get("injured") > 0):
+    # ── Detail-driven modifiers ───────────────────────────────────────────────
+    injured = _int(d.get("injured"))
+    if injured > 0:
         score += 20
-        reasons.append("Injuries reported")
-    
-    if details.get("trapped"):
+        reasons.append(f"{injured} injured reported")
+
+    if _truthy(d.get("trapped")):
         score += 30
         reasons.append("People trapped")
 
-    if details.get("children"):
+    if _truthy(d.get("children")):
         score += 20
         reasons.append("Children involved")
 
-    if details.get("immediate_danger") or details.get("spreading"):
+    if _truthy(d.get("immediate_rescue")) or _truthy(d.get("immediate_danger")):
         score += 25
-        reasons.append("Immediate danger or spreading hazard")
+        reasons.append("Immediate rescue required")
 
-    if details.get("sos") is True:
+    if _truthy(d.get("spreading")) or _truthy(d.get("evacuation_required")):
+        score += 20
+        reasons.append("Spreading / evacuation required")
+
+    if _truthy(d.get("mass_casualty")) or _int(d.get("affected")) >= 50:
+        score += 25
+        reasons.append("Mass casualty / large-scale impact")
+
+    if _truthy(d.get("chemical_leak")) or _truthy(d.get("hazmat")):
+        score += 20
+        reasons.append("Hazardous material involved")
+
+    if _truthy(d.get("critical_infrastructure_down")):
+        score += 20
+        reasons.append("Critical infrastructure failure")
+
+    if _truthy(d.get("sos")):
         score += 50
         reasons.append("SOS alert triggered")
 
-    # Cap at 100
     score = min(100, score)
 
-    # Determine priority
     if score >= 80:
         priority = IncidentPriority.critical
     elif score >= 50:
@@ -50,5 +72,21 @@ def calculate_severity(inc_type: IncidentType, details: Dict[str, Any]) -> Tuple
     else:
         priority = IncidentPriority.low
 
-    reason_str = "; ".join(reasons)
-    return score, priority, reason_str
+    return score, priority, "; ".join(reasons)
+
+
+def _truthy(val) -> bool:
+    if val is None:
+        return False
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.lower() in ("true", "yes", "1")
+    return bool(val)
+
+
+def _int(val) -> int:
+    try:
+        return int(val or 0)
+    except (TypeError, ValueError):
+        return 0

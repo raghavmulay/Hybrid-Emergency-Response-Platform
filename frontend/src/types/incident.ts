@@ -1,16 +1,15 @@
 // Shared TypeScript interfaces for the Incident domain (Part 1)
 
 export type IncidentType =
-  | 'fire'
+  | 'earthquake'
   | 'flood'
-  | 'medical'
-  | 'road_accident'
+  | 'cyclone'
+  | 'landslide'
+  | 'wildfire'
   | 'building_collapse'
-  | 'electrical_hazard'
-  | 'missing_person'
-  | 'trapped_person'
-  | 'security_emergency'
-  | 'road_blockage'
+  | 'industrial_hazard'
+  | 'infrastructure_failure'
+  | 'mass_casualty'
   | 'other';
 
 export type IncidentPriority = 'low' | 'medium' | 'high' | 'critical';

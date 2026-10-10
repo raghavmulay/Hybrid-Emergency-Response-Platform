@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
+import IncidentMap from '../components/IncidentMap';
 import { getMyIncidents } from '../api/incidents';
 import {
   INCIDENT_TYPE_LABELS,
@@ -35,10 +36,12 @@ export default function MyIncidents() {
   }, [incidentCreated, queryClient]);
 
   const incidents = data?.incidents ?? [];
+  const mappable = incidents.filter((i) => i.latitude != null && i.longitude != null);
+  const [view, setView] = useState<'list' | 'map'>('list');
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -49,24 +52,56 @@ export default function MyIncidents() {
               All emergency reports you have submitted.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* View toggle */}
+            <div className="flex rounded-lg overflow-hidden text-xs font-semibold" style={{ border: '1px solid var(--border)' }}>
+              <button
+                onClick={() => setView('list')}
+                className="px-3 py-1.5 transition-colors"
+                style={view === 'list'
+                  ? { background: '#6366f1', color: '#fff' }
+                  : { background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}
+              >☰ List</button>
+              <button
+                onClick={() => setView('map')}
+                className="px-3 py-1.5 transition-colors"
+                style={view === 'map'
+                  ? { background: '#6366f1', color: '#fff' }
+                  : { background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}
+              >🗺️ Map {mappable.length > 0 && `(${mappable.length})`}</button>
+            </div>
             <button
               onClick={() => refetch()}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--bg-subtle)' }}
             >
-              🔄 Refresh
+              🔄
             </button>
             <Link
               to="/report"
               className="text-xs font-bold px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors"
             >
-              + Report Emergency
+              + Report
             </Link>
           </div>
         </div>
 
+        {/* Map view */}
+        {view === 'map' && !isLoading && (
+          <div className="mb-4">
+            {mappable.length === 0 ? (
+              <div className="text-center py-16" style={{ color: 'var(--text-dim)' }}>
+                <p className="text-4xl mb-3">📍</p>
+                <p className="text-sm">None of your incidents have location data.</p>
+              </div>
+            ) : (
+              <IncidentMap incidents={mappable} responders={[]} height="520px" />
+            )}
+          </div>
+        )}
+
         {/* Loading */}
-        {isLoading && (
+        {view === 'list' && isLoading && (
           <div className="text-center py-16 text-gray-400">
             <p className="text-4xl mb-3">⏳</p>
             <p>Loading your incidents…</p>
@@ -74,7 +109,7 @@ export default function MyIncidents() {
         )}
 
         {/* Error */}
-        {isError && (
+        {view === 'list' && isError && (
           <div className="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-xl p-4 text-sm text-red-700 dark:text-red-300">
             ⚠️ Failed to load incidents. Please check your connection.
             <button onClick={() => refetch()} className="ml-3 underline font-semibold">
@@ -84,7 +119,7 @@ export default function MyIncidents() {
         )}
 
         {/* Empty */}
-        {!isLoading && !isError && incidents.length === 0 && (
+        {view === 'list' && !isLoading && !isError && incidents.length === 0 && (
           <div className="text-center py-20 text-gray-400">
             <p className="text-5xl mb-4">📭</p>
             <p className="text-lg font-semibold text-gray-600 dark:text-gray-300">No incidents reported yet.</p>
@@ -93,7 +128,7 @@ export default function MyIncidents() {
         )}
 
         {/* Incident list */}
-        {incidents.length > 0 && (
+        {view === 'list' && incidents.length > 0 && (
           <div className="space-y-3">
             {incidents.map((inc) => (
               <Link

@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Incident, Responder } from '../types/incident';
-import { PRIORITY_BADGE_CLASSES, PRIORITY_LABELS, STATUS_LABELS, AVAILABILITY_LABELS } from '../constants/incidentConfig';
+import { PRIORITY_LABELS, STATUS_LABELS, AVAILABILITY_LABELS } from '../constants/incidentConfig';
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -14,25 +14,57 @@ L.Icon.Default.mergeOptions({
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: '#dc2626',
-  high: '#ea580c',
-  medium: '#d97706',
-  low: '#2563eb',
+  high:     '#ea580c',
+  medium:   '#d97706',
+  low:      '#2563eb',
+};
+
+const TYPE_EMOJI: Record<string, string> = {
+  earthquake:             '🌍',
+  flood:                  '🌊',
+  cyclone:                '🌪️',
+  landslide:              '⛰️',
+  wildfire:               '🔥',
+  building_collapse:      '🏚️',
+  industrial_hazard:      '☣️',
+  infrastructure_failure: '⚡',
+  mass_casualty:          '🚨',
+  other:                  '❓',
 };
 
 const AVAILABILITY_COLORS: Record<string, string> = {
   AVAILABLE: '#16a34a',
-  BUSY: '#ca8a04',
-  OFFLINE: '#6b7280',
+  BUSY:      '#ca8a04',
+  OFFLINE:   '#6b7280',
 };
 
-function incidentIcon(priority: string) {
+const PING_STYLE = `<style>@keyframes herp-ping{75%,100%{transform:scale(2);opacity:0}}</style>`;
+
+function incidentIcon(priority: string, type: string) {
   const color = PRIORITY_COLORS[priority] ?? '#6366f1';
+  const emoji = TYPE_EMOJI[type] ?? '❗';
+  const pulse = priority === 'critical'
+    ? `<div style="position:absolute;inset:-5px;border-radius:50%;background:${color};opacity:0.3;animation:herp-ping 1.5s ease-out infinite"></div>`
+    : '';
   return L.divIcon({
     className: '',
-    html: `<div style="width:28px;height:28px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -28],
+    html: `${PING_STYLE}
+      <div style="position:relative;width:38px;height:38px">
+        ${pulse}
+        <div style="
+          position:relative;z-index:1;
+          width:38px;height:38px;
+          background:${color};
+          border-radius:50%;
+          border:3px solid #fff;
+          box-shadow:0 2px 12px rgba(0,0,0,0.4);
+          display:flex;align-items:center;justify-content:center;
+          font-size:17px;line-height:1
+        ">${emoji}</div>
+      </div>`,
+    iconSize:    [38, 38],
+    iconAnchor:  [19, 19],
+    popupAnchor: [0, -22],
   });
 }
 
@@ -40,10 +72,18 @@ function responderIcon(availability: string) {
   const color = AVAILABILITY_COLORS[availability] ?? '#6b7280';
   return L.divIcon({
     className: '',
-    html: `<div style="width:26px;height:26px;background:${color};border-radius:4px;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:12px">🚑</div>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-    popupAnchor: [0, -16],
+    html: `<div style="
+      width:32px;height:32px;
+      background:${color};
+      border-radius:8px;
+      border:3px solid #fff;
+      box-shadow:0 2px 8px rgba(0,0,0,0.35);
+      display:flex;align-items:center;justify-content:center;
+      font-size:15px
+    ">🚑</div>`,
+    iconSize:    [32, 32],
+    iconAnchor:  [16, 16],
+    popupAnchor: [0, -20],
   });
 }
 
@@ -51,12 +91,12 @@ function MapFit({ incidents, responders }: { incidents: Incident[]; responders: 
   const map = useMap();
   useEffect(() => {
     const points: [number, number][] = [
-      ...incidents.filter((i) => i.latitude != null && i.longitude != null).map((i) => [i.latitude!, i.longitude!] as [number, number]),
-      ...responders.filter((r) => r.latitude != null && r.longitude != null).map((r) => [r.latitude!, r.longitude!] as [number, number]),
+      ...incidents.filter((i) => i.latitude != null).map((i) => [i.latitude!, i.longitude!] as [number, number]),
+      ...responders.filter((r) => r.latitude != null).map((r) => [r.latitude!, r.longitude!] as [number, number]),
     ];
     if (points.length === 0) return;
     if (points.length === 1) { map.setView(points[0], 13); return; }
-    map.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 14 });
+    map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 14 });
   }, [map, incidents, responders]);
   return null;
 }
@@ -73,16 +113,33 @@ export default function IncidentMap({ incidents, responders, height = '420px' }:
     : [18.5204, 73.8567];
 
   return (
-    <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-md">
-      <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-4 text-xs">
-        <span className="flex items-center gap-1.5 font-semibold text-gray-700 dark:text-gray-300">
-          <span className="inline-block w-3 h-3 rounded-full bg-red-600" /> Incidents
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+      {/* Legend bar */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center',
+        gap: '6px 16px', padding: '8px 14px',
+        backgroundColor: 'var(--bg-muted)', borderBottom: '1px solid var(--border)',
+        fontSize: 11,
+      }}>
+        <span style={{ fontWeight: 700, color: 'var(--text-muted)', marginRight: 4 }}>Priority:</span>
+        {(['critical', 'high', 'medium', 'low'] as const).map((p) => (
+          <span key={p} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: PRIORITY_COLORS[p], display: 'inline-block' }} />
+            <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{p}</span>
+          </span>
+        ))}
+        {responders.length > 0 && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 13 }}>🚑</span>
+            <span style={{ color: 'var(--text-muted)' }}>Responder</span>
+          </span>
+        )}
+        <span style={{ marginLeft: 'auto', color: 'var(--text-dim)' }}>
+          {incidents.length} incident{incidents.length !== 1 ? 's' : ''}
+          {responders.length > 0 ? ` · ${responders.length} responder${responders.length !== 1 ? 's' : ''}` : ''}
         </span>
-        <span className="flex items-center gap-1.5 font-semibold text-gray-700 dark:text-gray-300">
-          <span className="inline-block w-3 h-3 rounded bg-green-600" /> Responders
-        </span>
-        <span className="text-gray-400">{incidents.length} incidents · {responders.length} responders plotted</span>
       </div>
+
       <div style={{ height, width: '100%' }}>
         <MapContainer center={center} zoom={10} style={{ height: '100%', width: '100%' }}>
           <TileLayer
@@ -92,16 +149,35 @@ export default function IncidentMap({ incidents, responders, height = '420px' }:
           <MapFit incidents={incidents} responders={responders} />
 
           {incidents.map((inc) => (
-            <Marker key={`inc-${inc.id}`} position={[inc.latitude!, inc.longitude!]} icon={incidentIcon(inc.priority)}>
-              <Popup maxWidth={240}>
-                <div className="space-y-1 text-sm">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PRIORITY_BADGE_CLASSES[inc.priority]}`}>
-                    {PRIORITY_LABELS[inc.priority]}
-                  </span>
-                  <p className="font-bold text-gray-900 mt-1">{inc.incident_number}</p>
-                  <p className="text-gray-700">{inc.title}</p>
-                  <p className="text-xs text-gray-500">{STATUS_LABELS[inc.status] ?? inc.status}</p>
-                  {inc.address && <p className="text-xs text-gray-500">📍 {inc.address}</p>}
+            <Marker
+              key={`inc-${inc.id}`}
+              position={[inc.latitude!, inc.longitude!]}
+              icon={incidentIcon(inc.priority, inc.type)}
+            >
+              <Popup maxWidth={260}>
+                <div style={{ fontFamily: 'Inter, system-ui, sans-serif', minWidth: 210 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 8px',
+                      borderRadius: 999, color: '#fff',
+                      background: PRIORITY_COLORS[inc.priority] ?? '#6366f1',
+                    }}>
+                      {PRIORITY_LABELS[inc.priority]}
+                    </span>
+                    <span style={{ fontSize: 10, color: '#737373' }}>{STATUS_LABELS[inc.status]}</span>
+                  </div>
+                  <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 2px', color: '#0d0d0d' }}>
+                    {inc.incident_number}
+                  </p>
+                  <p style={{ fontSize: 12, color: '#404040', margin: '0 0 4px' }}>{inc.title}</p>
+                  {inc.address && (
+                    <p style={{ fontSize: 11, color: '#737373', margin: '0 0 2px' }}>📍 {inc.address}</p>
+                  )}
+                  {inc.severity_score != null && (
+                    <p style={{ fontSize: 11, color: '#737373', margin: 0 }}>
+                      Severity: <strong>{inc.severity_score}/100</strong>
+                    </p>
+                  )}
                 </div>
               </Popup>
             </Marker>
@@ -110,13 +186,10 @@ export default function IncidentMap({ incidents, responders, height = '420px' }:
           {responders.map((r) => (
             <Marker key={`resp-${r.id}`} position={[r.latitude!, r.longitude!]} icon={responderIcon(r.availability)}>
               <Popup maxWidth={200}>
-                <div className="space-y-1 text-sm">
-                  <p className="font-bold text-gray-900">{r.email}</p>
-                  <p className="text-xs">{AVAILABILITY_LABELS[r.availability]}</p>
-                  <p className="text-xs text-gray-500">{r.active_assignments} active assignment(s)</p>
-                  <p className="text-xs text-gray-400 font-mono">
-                    {r.latitude?.toFixed(5)}, {r.longitude?.toFixed(5)}
-                  </p>
+                <div style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                  <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 3px', color: '#0d0d0d' }}>{r.email}</p>
+                  <p style={{ fontSize: 11, color: '#737373', margin: '0 0 2px' }}>{AVAILABILITY_LABELS[r.availability]}</p>
+                  <p style={{ fontSize: 11, color: '#737373', margin: 0 }}>{r.active_assignments} active assignment(s)</p>
                 </div>
               </Popup>
             </Marker>

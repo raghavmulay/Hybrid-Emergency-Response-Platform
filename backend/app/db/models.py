@@ -89,16 +89,15 @@ class PredefinedMessage(Base):
 # ---------------------------------------------------------------------------
 
 class IncidentType(PyEnum):
-    fire = "fire"
+    earthquake = "earthquake"
     flood = "flood"
-    medical = "medical"
-    road_accident = "road_accident"
+    cyclone = "cyclone"
+    landslide = "landslide"
+    wildfire = "wildfire"
     building_collapse = "building_collapse"
-    electrical_hazard = "electrical_hazard"
-    missing_person = "missing_person"
-    trapped_person = "trapped_person"
-    security_emergency = "security_emergency"
-    road_blockage = "road_blockage"
+    industrial_hazard = "industrial_hazard"
+    infrastructure_failure = "infrastructure_failure"
+    mass_casualty = "mass_casualty"
     other = "other"
 
 

@@ -189,10 +189,10 @@ export default function ReportIncident() {
         <div className="max-w-2xl mx-auto">
           <div className="mb-6">
             <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-              🚨 Report an Emergency
+              🌍 Disaster Incident Reporting
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Select the type of emergency you are reporting.
+              Select the type of disaster or emergency you are reporting.
             </p>
           </div>
 
@@ -239,6 +239,18 @@ export default function ReportIncident() {
                   {q.label}
                   {q.required && <span className="text-red-500 ml-1">*</span>}
                 </label>
+                {q.type === 'select' && (
+                  <select
+                    value={(answers[q.key] as string) ?? ''}
+                    onChange={(e) => setAnswers((p) => ({ ...p, [q.key]: e.target.value }))}
+                    className="w-full rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 px-3 py-2 text-sm"
+                  >
+                    <option value="">Select an option…</option>
+                    {q.options?.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                )}
                 {q.type === 'text' && (
                   <textarea
                     rows={2}

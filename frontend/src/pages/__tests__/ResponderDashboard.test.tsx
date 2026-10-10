@@ -38,7 +38,7 @@ const mockPendingAssignment = {
     id: 5,
     incident_number: 'HERP-2024-000001',
     title: 'Road Accident on NH4',
-    type: 'road_accident' as const,
+    type: 'mass_casualty' as const,
     status: 'assigned' as const,
     priority: 'high' as const,
     description: 'Multi-vehicle accident',

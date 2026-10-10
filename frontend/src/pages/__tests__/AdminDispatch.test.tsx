@@ -22,7 +22,7 @@ const mockIncident = {
   id: 1,
   incident_number: 'HERP-2024-000001',
   title: 'Fire at Market',
-  type: 'fire' as const,
+  type: 'wildfire' as const,
   status: 'verified' as const,
   priority: 'critical' as const,
   description: null,

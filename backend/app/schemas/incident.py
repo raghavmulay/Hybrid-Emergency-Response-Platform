@@ -4,18 +4,16 @@ from pydantic import BaseModel, Field, validator
 from enum import Enum
 
 class IncidentType(str, Enum):
-    fire = "fire"
-    flood = "flood"
-    medical = "medical"
-    other = "other"
-    road_accident = "road_accident"
-    building_collapse = "building_collapse"
-    electrical_hazard = "electrical_hazard"
-    missing_person = "missing_person"
-    trapped_person = "trapped_person"
-    security_emergency = "security_emergency"
-    road_blockage = "road_blockage"
-    # add more as needed
+    earthquake             = "earthquake"
+    flood                  = "flood"
+    cyclone                = "cyclone"
+    landslide              = "landslide"
+    wildfire               = "wildfire"
+    building_collapse      = "building_collapse"
+    industrial_hazard      = "industrial_hazard"
+    infrastructure_failure = "infrastructure_failure"
+    mass_casualty          = "mass_casualty"
+    other                  = "other"
 
 class IncidentPriority(str, Enum):
     low = "low"

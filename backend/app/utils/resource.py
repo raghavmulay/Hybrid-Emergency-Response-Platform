@@ -1,20 +1,23 @@
-﻿"""
-Resource recommendation utility for HERP incidents.
-Simple rule-based mapping — NOT dispatch, just advisory recommendations.
+"""
+Resource recommendation utility for HERP disaster incidents.
+Rule-based mapping — advisory only, not automatic dispatch.
 """
 from typing import Any, Dict, List, Optional
 from app.db.models import IncidentType
 
 
 RESOURCES = {
-    "AMBULANCE": "Ambulance",
-    "FIRE_UNIT": "Fire Unit",
-    "RESCUE": "Rescue Team",
-    "POLICE": "Police",
-    "TRAFFIC": "Traffic Control",
-    "HAZMAT": "Hazmat Unit",
-    "SEARCH": "Search & Rescue",
-    "UTILITY": "Utility / Infrastructure",
+    "AMBULANCE":  "Ambulance",
+    "FIRE_UNIT":  "Fire Unit",
+    "RESCUE":     "Rescue Team",
+    "POLICE":     "Police",
+    "TRAFFIC":    "Traffic Control",
+    "HAZMAT":     "Hazmat Unit",
+    "SEARCH":     "Search & Rescue",
+    "UTILITY":    "Utility / Infrastructure",
+    "MILITARY":   "Military / Civil Defence",
+    "MEDICAL":    "Medical Response Team",
+    "EVACUATION": "Evacuation Unit",
 }
 
 
@@ -22,82 +25,75 @@ def recommend_resources(
     incident_type: IncidentType,
     details: Optional[Dict[str, Any]],
 ) -> List[str]:
-    """
-    Returns a list of resource category keys to recommend.
-    Based on incident type and structured details.
-    """
     d = details or {}
-    resources = set()
+    resources: set[str] = set()
 
-    injured = int(d.get("injured", 0) or 0)
-    trapped = int(d.get("trapped", 0) or 0)
-    has_fire = _truthy(d.get("fire_or_smoke")) or _truthy(d.get("fire_spreading"))
+    injured   = _int(d.get("injured"))
+    trapped   = _truthy(d.get("trapped"))
+    affected  = _int(d.get("affected"))
+    hazmat    = _truthy(d.get("chemical_leak")) or _truthy(d.get("hazmat"))
+    evac      = _truthy(d.get("evacuation_required"))
+    spreading = _truthy(d.get("spreading"))
 
-    if incident_type == IncidentType.fire:
-        resources.add("FIRE_UNIT")
-        if injured > 0 or _truthy(d.get("anyone_injured")):
-            resources.add("AMBULANCE")
-        if trapped > 0 or _truthy(d.get("anyone_trapped")):
-            resources.add("RESCUE")
-
-    elif incident_type == IncidentType.road_accident:
-        if injured > 0 or _truthy(d.get("anyone_injured")):
-            resources.add("AMBULANCE")
-        if trapped > 0 or _truthy(d.get("anyone_trapped")):
-            resources.add("RESCUE")
-        if _truthy(d.get("road_blocked")):
-            resources.add("TRAFFIC")
-            resources.add("POLICE")
-        if has_fire:
-            resources.add("FIRE_UNIT")
-        if not resources:
-            resources.add("POLICE")
-
-    elif incident_type == IncidentType.medical:
-        resources.add("AMBULANCE")
-
-    elif incident_type == IncidentType.building_collapse:
-        resources.add("RESCUE")
-        if injured > 0 or trapped > 0:
-            resources.add("AMBULANCE")
-        if has_fire or _truthy(d.get("gas_hazard")):
-            resources.add("FIRE_UNIT")
-            resources.add("HAZMAT")
+    if incident_type == IncidentType.earthquake:
+        resources.update(["RESCUE", "MEDICAL"])
+        if injured > 0:   resources.add("AMBULANCE")
+        if trapped:       resources.add("SEARCH")
+        if evac:          resources.add("EVACUATION")
+        if affected >= 50: resources.add("MILITARY")
 
     elif incident_type == IncidentType.flood:
-        resources.add("RESCUE")
-        if trapped > 0 or _truthy(d.get("anyone_trapped")):
-            resources.add("SEARCH")
-        if injured > 0:
-            resources.add("AMBULANCE")
+        resources.update(["RESCUE", "EVACUATION"])
+        if trapped:       resources.add("SEARCH")
+        if injured > 0:   resources.add("AMBULANCE")
+        if affected >= 50: resources.add("MILITARY")
 
-    elif incident_type == IncidentType.electrical_hazard:
+    elif incident_type == IncidentType.cyclone:
+        resources.update(["RESCUE", "EVACUATION"])
+        if injured > 0:   resources.add("AMBULANCE")
+        if affected >= 50: resources.add("MILITARY")
         resources.add("UTILITY")
-        resources.add("HAZMAT")
-        if injured > 0:
-            resources.add("AMBULANCE")
 
-    elif incident_type == IncidentType.missing_person:
-        resources.add("SEARCH")
-        resources.add("POLICE")
-
-    elif incident_type == IncidentType.trapped_person:
-        resources.add("RESCUE")
-        resources.add("AMBULANCE")
-
-    elif incident_type == IncidentType.security_emergency:
-        resources.add("POLICE")
-
-    elif incident_type == IncidentType.road_blockage:
+    elif incident_type == IncidentType.landslide:
+        resources.update(["RESCUE", "SEARCH"])
+        if injured > 0:   resources.add("AMBULANCE")
+        if evac:          resources.add("EVACUATION")
         resources.add("TRAFFIC")
+
+    elif incident_type == IncidentType.wildfire:
+        resources.update(["FIRE_UNIT", "RESCUE"])
+        if injured > 0:   resources.add("AMBULANCE")
+        if evac or spreading: resources.add("EVACUATION")
+        if affected >= 50: resources.add("MILITARY")
+
+    elif incident_type == IncidentType.building_collapse:
+        resources.update(["RESCUE", "SEARCH"])
+        if injured > 0 or trapped: resources.add("AMBULANCE")
+        if hazmat:        resources.update(["HAZMAT", "FIRE_UNIT"])
+        if evac:          resources.add("EVACUATION")
+
+    elif incident_type == IncidentType.industrial_hazard:
+        resources.update(["HAZMAT", "FIRE_UNIT"])
+        if injured > 0:   resources.add("AMBULANCE")
+        if evac:          resources.add("EVACUATION")
         resources.add("POLICE")
 
-    else:  # other / SOS
-        resources.add("POLICE")
-        if injured > 0:
-            resources.add("AMBULANCE")
+    elif incident_type == IncidentType.infrastructure_failure:
+        resources.update(["UTILITY", "POLICE"])
+        if injured > 0:   resources.add("AMBULANCE")
+        if _truthy(d.get("critical_infrastructure_down")): resources.add("MILITARY")
 
-    return sorted(list(resources))
+    elif incident_type == IncidentType.mass_casualty:
+        resources.update(["AMBULANCE", "MEDICAL", "RESCUE", "POLICE"])
+        if evac:          resources.add("EVACUATION")
+        resources.add("MILITARY")
+
+    else:  # other
+        resources.add("RESCUE")
+        if injured > 0:   resources.add("AMBULANCE")
+        resources.add("POLICE")
+
+    return sorted(resources)
 
 
 def _truthy(val) -> bool:
@@ -108,3 +104,10 @@ def _truthy(val) -> bool:
     if isinstance(val, str):
         return val.lower() in ("true", "yes", "1")
     return bool(val)
+
+
+def _int(val) -> int:
+    try:
+        return int(val or 0)
+    except (TypeError, ValueError):
+        return 0
